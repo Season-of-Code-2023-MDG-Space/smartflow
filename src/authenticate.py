@@ -29,7 +29,7 @@ def authenticate_user():
     print(f"Code for authentication: {response['user_code']}")
     sleep(1.5)
 
-    with open('./src/auth_init.json', 'w') as f:
+    with open(os.path.normpath('./src/auth_init.json'), 'w') as f:
         f.write(json.dumps(response, indent=4))
 
     webbrowser.open_new_tab(response['verification_uri'])
@@ -48,7 +48,7 @@ def authenticate_user():
             response = dict([i.split('=') for i in x.text.split('&')])
             response['scope'] = unquote(response['scope'])
             
-            with open('./src/access_token.json', 'w') as file:
+            with open(os.path.normpath('./src/access_token.json'), 'w') as file:
                 file.write(json.dumps(response, indent=4))
             print(f"Authenticated successfully\u2705")
             break

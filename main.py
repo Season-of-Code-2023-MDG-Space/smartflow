@@ -9,7 +9,7 @@ import sys
 if 'access_token.json' not in os.listdir("./src"):
     authenticate_user()
 
-with open('./src/access_token.json', 'r') as file:
+with open(os.path.normpath('./src/access_token.json'), 'r') as file:
     access_token = json.load(file)['access_token']
 
 if len(sys.argv) != 3:
@@ -25,7 +25,7 @@ else:
     project_name, framework = sys.argv[1:]
 
     if framework.lower().startswith('react'):
-        with open('./templateConfig.json', 'r') as configFile:
+        with open(os.path.normpath('./templateConfig.json'), 'r') as configFile:
             repo_link = json.load(configFile)['react']
     
         repo = g.get_repo(repo_link)
@@ -48,7 +48,7 @@ else:
                 with open(path, 'wb') as f:
                     f.write(res.content)
                 
-                print(f"(+) {path} \u2705")
+                print(f"\u2705 {path}")
                 
         print("\nGood to Go!\n")
     else: 
