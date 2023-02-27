@@ -1,5 +1,8 @@
 # Template
-Here is some text describing the app and random stuff.  
+Here is some text describing the app and random stuff. 
+
+**This is just a random readme for testing purposes.**
+
 Lorem ipsum dolor sit amet consectetur adipisicing elit. Eligendi odio amet quidem reprehenderit voluptatum, sit a, iure, at unde quaerat tempora sequi molestias impedit inventore.
 
 ## Requirements
@@ -10,19 +13,23 @@ Node version 16.1.2 required.
 ### Windows
 - Using chocolaty
    ```
-   choco install {package-name}
+   ls
+   && pwd
    ```
+
 - Download the installer [file.exe](https://google.com)
 
 ### Linux
-- Using apt
+1. Using apt
    ```
-   sudo apt install {package_name}
+   sudo apt update
+   pip install bs4
    ```
-- Using snap
+2. Using snap
    ```
-   sudo snap install {package_name}
+   sudo apt upgrade
    ```
+3. Open [localhost](http://localhost:3000)
 
 ## References
 * Reference 1
