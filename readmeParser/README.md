@@ -7,6 +7,12 @@ Lorem ipsum dolor sit amet consectetur adipisicing elit. Eligendi odio amet quid
 
 ## Requirements
 Node version 16.1.2 required.
+Want to go to [reddit](https://reddit.com) or [google](https://google.com) to look for the setup?
+
+And check for git installation by the following command:
+```
+git --version
+```
 
 ## Setup
 
