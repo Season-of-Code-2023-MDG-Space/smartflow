@@ -18,24 +18,22 @@ git --version
 
 ### Windows
 - Using chocolaty
-   ```
-   ls
-   && pwd
-   ```
+   1. List all the files -  ```ls```
+   2. Get the present working directory - ``` pwd ```
 
 - Download the installer [file.exe](https://google.com)
 
 ### Linux
-1. Using apt
+- Using apt
    ```
    sudo apt update
    pip install bs4
    ```
-2. Using snap
+- Using snap
    ```
    sudo apt upgrade
    ```
-3. Open [localhost](http://localhost:3000)
+- Open [localhost](http://localhost:3000)
 
 ## References
 * Reference 1

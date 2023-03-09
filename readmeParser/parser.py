@@ -1,4 +1,4 @@
-import markdown
+import mistune
 from bs4 import BeautifulSoup
 import questionary
 import sys
@@ -47,6 +47,20 @@ def ParseLinks(html) -> list:
     '''
     return [(link.text, link.get('href')) for link in html.find_all('a')]
 
+def DisplayLinks(links: list):
+    '''
+    Displays links of the form of (reference, link) in the links list.
+    '''
+    print(f"Links to be opened -->")
+    [print(f"  '{reference}' : {link}") for reference, link in links]
+
+def DisplayCommands(commands):
+    '''
+    Displays the commands to be executed from the commands list.
+    '''
+    print(f"Commands to be executed -->")
+    [print("  "+i) for i in commands]
+
 def ExecuteCommands(commandList: list):
     '''
     Executes all the commands in commandList.
@@ -76,7 +90,7 @@ def EnsureRequirements(requirementHtml) -> bool:
             message="A few links found. Which one(s) do you want to open?",
             choices=list([f"{ref} : {link}" for ref, link in links])
         ).ask()
-        if chosen_links: #If user has selected atleast 1 choice.
+        if chosen_links: # If user has selected atleast 1 choice.
             chosen_links = [string.split(" : ") for string in chosen_links]
             print("Opening links...")
             OpenLinks(chosen_links)
@@ -91,7 +105,7 @@ def EnsureRequirements(requirementHtml) -> bool:
             message="A few command blocks found. Which one(s) do you want to execute?",
             choices=command_list
         ).ask()
-        if chosen_commands: 
+        if chosen_commands:
             print("Executing....")
             ExecuteCommands(chosen_commands)
 
@@ -99,9 +113,24 @@ def EnsureRequirements(requirementHtml) -> bool:
     print("\nMake sure the requirements are satisfied :)\n")
     sleep(1)
     return questionary.confirm("Continue with the setup?").ask()
-    
 
-def ParseInstructions(htmlList):
+
+def ParseListItem(li):
+    commands_list = []
+    for code_tag in li.find_all('code'):
+        commands_list.extend(ParseCommands(code_tag))
+        code_tag.decompose()
+        
+    links = ParseLinks(li)
+    prompt = li.text.strip()
+    result = {
+        "prompt" : prompt,
+        "commands" : commands_list,
+        "links" : links
+    }
+    return result
+
+def ParseInstructions(htmlList, nestedList=False):
     '''
     Segregates the list item code into:
     1. prompt - The instruction.
@@ -111,24 +140,45 @@ def ParseInstructions(htmlList):
     Parameters:
     htmlList : An ordered or unordered html list, parsed with BeautifulSoup
     '''
-    instructions = htmlList.find_all("li")
     parsed_instructions = {}
-    for i in range(len(instructions)):
-        commands_list = []
-        for code_tag in instructions[i].find_all('code'):
-            commands_list.extend(ParseCommands(code_tag))
-            code_tag.decompose()
-
-        # links = [(link.text, link.get('href')) for link in instructions[i].find_all('a')]
-        links = ParseLinks(instructions[i])
-        prompt = instructions[i].text.strip()
+    instructions = htmlList.find_all('li')
+    
+    if nestedList:
         
-        parsed_instructions[i] = {
-            "prompt" : prompt,
-            "commands" : commands_list,
-            "links" : links
-        }
-        
+        count = index = 0
+        while count < len(instructions):
+            item = instructions[count]
+            
+            if item.ol or item.ul:
+                setup_instruct = {}
+                if item.ol:
+                    nested_list_items = item.ol.find_all('li')
+                    n = len(nested_list_items)
+                    for j in range(len(nested_list_items)):
+                        setup_instruct[j] = ParseListItem(nested_list_items[j])
+                    item.ol.decompose()
+                    parsed_instructions[(index, 'ol', item.text.strip())] = setup_instruct
+                
+                else:
+                    nested_list_items = item.ul.find_all('li')
+                    n = len(nested_list_items)
+                    for j in range(len(nested_list_items)):
+                        setup_instruct[j] = ParseListItem(nested_list_items[j])
+                    item.ul.decompose()
+                    parsed_instructions[(index, 'ul', item.text.strip())] = setup_instruct
+                
+                count += n+1
+            
+            else:
+                parsed_instructions[(index, None)] = ParseListItem(item)
+                count += 1
+                
+            index += 1     
+            
+    else:
+        for i in range(len(instructions)):
+            parsed_instructions[i] = ParseListItem(instructions[i])
+    
     return parsed_instructions
 
 
@@ -144,15 +194,17 @@ def SetupViaChoices(parsed_choices: dict):
     links = parsed_choices[choice_index]['links']
     
     if links:
-        print(f"The following links will be opened:")
-        [print(f"{reference} : {link}") for (reference,link) in links]
+        print()
+        DisplayLinks(links)
+        print()
         if questionary.confirm("Want to open the links?").ask():
             OpenLinks(links)
             print("\nGood to Go!\n")
             
     if commands:
-        print(f"The following commands will be executed:")
-        [print(i) for i in commands]
+        print()
+        DisplayCommands(commands)
+        print()
         if questionary.confirm("Want to proceed?").ask():
             ExecuteCommands(commands)
             print("\nGood to Go!\n")
@@ -160,19 +212,15 @@ def SetupViaChoices(parsed_choices: dict):
 
 def SetupViaSteps(parsed_steps: dict):
     '''
-    Setup described by ordered list indicates choices.
+    Setup described by ordered list indicates steps.
     This takes the parsed instructions and sets up via steps.
     '''
     print("The following steps will be followed -->\n")
     for i in parsed_steps.keys():
         prompt, commands, links = parsed_steps[i].values()
         print(f"{i+1}. {prompt}")
-        if commands: 
-            print(f"Commands to be executed -->")
-            [print("  "+i) for i in commands]
-        if links: 
-            print(f"Links to be opened -->")
-            [print(f"  '{reference}' : {link}") for reference, link in links]
+        if commands: DisplayCommands(commands)
+        if links: DisplayLinks(links)
         print()
     
     if questionary.confirm('Want to continue?').ask():
@@ -183,6 +231,67 @@ def SetupViaSteps(parsed_steps: dict):
     
         print("\nGood to Go! \n")
 
+def SetupNestedList(setupHtml):
+    parent_list_type = setupHtml.name
+    parsed_instructions = ParseInstructions(setupHtml, nestedList=True)
+    
+    choices = []
+    for i,j in parsed_instructions.items():
+        if i[1]: choices.append((i[2], i[1]))
+        else: choices.append((j['prompt'], None))
+        
+    prompts = [i[0] for i in choices]
+    
+    if parent_list_type == 'ul':
+
+        choice = questionary.select("How do you want to set up?", choices=prompts).ask()
+        index = prompts.index(choice)
+        for i,j in parsed_instructions.items():
+            if i[0] == index:
+                if i[1]:
+                    if i[1] == 'ul': SetupViaChoices(j)
+                    elif i[1] == 'ol': SetupViaSteps(j)
+                else:
+                    prompt, commands, links = j.values()
+                    if links:
+                        DisplayLinks(links)
+                        if questionary.confirm("Want to open the links?").ask():
+                            OpenLinks(links)
+                            print("\nGood to Go!\n")
+                            
+                    if commands:
+                        DisplayCommands(commands)
+                        if questionary.confirm("Want to proceed?").ask():
+                            ExecuteCommands(commands)
+                            print("\nGood to Go!\n")
+                            
+    elif parent_list_type == 'ol':
+        print("\nThese steps will be followed -->\n")
+        for key, d in parsed_instructions.items():
+            if key[1]: print(f"{key[0]+1}. {key[2]}\n")
+            else:
+                prompt, commands, links = d.values()
+                print(f"{key[0]+1}. {prompt}")
+                if commands: DisplayCommands(commands)
+                if links: DisplayLinks(links)
+        
+        if questionary.confirm("Want to proceed?").ask():
+            for i, j in parsed_instructions.items():
+                if i[1]:
+                    print(f'\n\033[1m {i[0]+1}. {i[2]} \033[0m\n')
+                    if i[1] == 'ul': SetupViaChoices(j)
+                    elif i[1] == 'ol': SetupViaSteps(j)
+                else:
+                    prompt, commands, links = j.values()
+                    print(f"\033[1m {i[0]+1}. {prompt} \033[0m\n")
+                    if commands:
+                        DisplayCommands(commands)
+                        ExecuteCommands(commands)
+                    if links: 
+                        DisplayLinks(links)
+                        OpenLinks(links)
+                    
+        
 
 if __name__ == '__main__':
     
@@ -190,7 +299,7 @@ if __name__ == '__main__':
     
     with open(path_to_readme, 'r') as file:
         string = file.read()
-        html = markdown.markdown(string)
+        html = mistune.html(string)
 
     soup = BeautifulSoup(html, 'html.parser')
     h2 = soup.find_all('h2')
@@ -202,7 +311,7 @@ if __name__ == '__main__':
             req_heading_index = h2.index(heading)
         if "setup" in heading.text.lower():
             setup_heading_index = h2.index(heading)
-        if setup_heading_index!=None and req_heading_index!=None: 
+        if setup_heading_index != None and req_heading_index != None: 
             break
     else:
         print("This readme does not fall under the template standards specified, and cannot be parsed.")
@@ -239,11 +348,11 @@ if __name__ == '__main__':
                 break
         else:
             print("The current platform isn't supported yet.")
-            exit()
+            sys.exit()
 
-        # Calling the equired functions as per the list type 
-        print(setup_html)
-        parsed_instructions = ParseInstructions(setup_html)
-        
-        if setup_html.name == 'ul': SetupViaChoices(parsed_instructions)
-        elif setup_html.name == 'ol': SetupViaSteps(parsed_instructions)
+        # Calling the required functions as per the list type 
+        if setup_html.ul or setup_html.ol: SetupNestedList(setup_html)
+        else:
+            parsed_instructions = ParseInstructions(setup_html)
+            if setup_html.name == 'ul': SetupViaChoices(parsed_instructions)
+            elif setup_html.name == 'ol': SetupViaSteps(parsed_instructions)

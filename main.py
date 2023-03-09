@@ -70,6 +70,7 @@ if __name__ == "__main__":
     repo = g.get_repo(template)
     contents = repo.get_contents("")
 
+    print("\n\033[1mPutting the files in order \N{grinning face with smiling eyes} \033[0m\n")
     while contents:
         # Listing out all the structure of the template.
         file_content = contents.pop(0)
