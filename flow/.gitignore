@@ -1,4 +1,4 @@
-src/*.json
+*.json
 *.pyc
 *.env
 test.py

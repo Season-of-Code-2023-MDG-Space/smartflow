@@ -290,11 +290,10 @@ def SetupNestedList(setupHtml):
                     if links: 
                         DisplayLinks(links)
                         OpenLinks(links)
-                    
-        
 
-if __name__ == '__main__':
-    
+
+def main():
+        
     path_to_readme = questionary.path("Where is the README for setup?").ask()
     
     with open(path_to_readme, 'r') as file:
@@ -356,3 +355,6 @@ if __name__ == '__main__':
             parsed_instructions = ParseInstructions(setup_html)
             if setup_html.name == 'ul': SetupViaChoices(parsed_instructions)
             elif setup_html.name == 'ol': SetupViaSteps(parsed_instructions)
+
+if __name__ == '__main__':
+    main()

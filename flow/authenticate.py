@@ -9,8 +9,11 @@ import questionary
 
 load_dotenv()
 
+def AbsPath():
+    return os.path.realpath(os.path.dirname(__file__))
+
 def authenticate_user():
-    CLIENT_ID = os.environ['CLIENT_ID'] #SmartFlow oAuth app initialized
+    CLIENT_ID = "90396a22134d94c50fc8" # SmartFlow oAuth app initialized
 
     # URL constants (for device flow) : https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
     AUTH_URL = "https://github.com/login/device/code"
@@ -28,9 +31,9 @@ def authenticate_user():
     response['verification_uri'] = unquote(response['verification_uri'])
 
     print(f"Authentication code:\033[1m {response['user_code']} \033[0m")
-    print("Copy this and paste it into the browser.")
-    if questionary.confirm("Press 'y' to open browser.").ask():
-        with open(os.path.normpath('./src/auth_init.json'), 'w') as f:
+    print("Copy this and paste it into the browser")
+    if questionary.confirm("Press 'y' to open browser").ask():
+        with open(os.path.normpath(f'{AbsPath()}/auth_init.json'), 'w') as f:
             f.write(json.dumps(response, indent=4))
 
         webbrowser.open_new_tab(response['verification_uri'])
@@ -49,7 +52,7 @@ def authenticate_user():
                 response = dict([i.split('=') for i in x.text.split('&')])
                 response['scope'] = unquote(response['scope'])
                 
-                with open(os.path.normpath('./src/access_token.json'), 'w') as file:
+                with open(os.path.normpath(f'{AbsPath()}/access_token.json'), 'w') as file:
                     file.write(json.dumps(response, indent=4))
                 print(f"Authenticated successfully\u2705")
                 break
