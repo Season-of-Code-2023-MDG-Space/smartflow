@@ -3,13 +3,13 @@ from urllib.parse import unquote
 import webbrowser
 import json
 from time import sleep
-from dotenv.main import load_dotenv
 import os
 import questionary
 
-load_dotenv()
-
 def AbsPath():
+    '''
+    Gives the absolute path where the script is stored in the system.
+    '''
     return os.path.realpath(os.path.dirname(__file__))
 
 def authenticate_user():
