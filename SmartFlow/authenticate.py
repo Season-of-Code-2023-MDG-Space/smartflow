@@ -23,7 +23,7 @@ def authenticate_user():
     # Verifying the user
     user_verification_data = {
         "client_id" : CLIENT_ID,
-        "scope": "public_repo read:org",
+        "scope": "public_repo read:org project",
     }
 
     x = requests.post(AUTH_URL, json = user_verification_data)

@@ -1,5 +1,5 @@
 import os
-from flow.authenticate import authenticate_user, AbsPath
+from SmartFlow.authenticate import authenticate_user, AbsPath
 import json
 from github import Github
 import requests
@@ -42,12 +42,12 @@ def main():
     argParser.add_argument("--s", "--substitute", help="Specify if there are variables to be replaced", action='store_true')
     argParser.add_argument(
         "-projnamevar",
-        help="variable referring to the project's name to be changed dynamically in the files and folders",
+        help="variable referring to the project's name to be changed dynamically in the files and folders, default: '__project_name__'",
         default="__project_name__"
     )
     argParser.add_argument(
         "-projversvar",
-        help="variable referring to the project's version to be changed dynamically in the files and folders",
+        help="variable referring to the project's version to be changed dynamically in the files and folders, default: '__project_version__'",
         default="__project_version__"
     )
     args = vars(argParser.parse_args())

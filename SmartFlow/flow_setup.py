@@ -74,7 +74,7 @@ def OpenLinks(parsedlinkList: list):
     [webbrowser.open_new_tab(link) for reference, link in parsedlinkList]
 
 
-##### Main functions ####
+####### Main functions ######
 def EnsureRequirements(requirementHtml) -> bool:
     '''
     Ensures the requirements are met before moving onto setup.
@@ -116,6 +116,15 @@ def EnsureRequirements(requirementHtml) -> bool:
 
 
 def ParseListItem(li):
+    '''
+    Segregates a list item into -->
+    1. prompt: The instruction.
+    2. commands: The snippets to be executed.
+    3. links - to any files or sites linked.
+    ---
+    Parameters:
+    li: a list item parsed with bs4.
+    '''
     commands_list = []
     for code_tag in li.find_all('code'):
         commands_list.extend(ParseCommands(code_tag))
@@ -130,15 +139,13 @@ def ParseListItem(li):
     }
     return result
 
-def ParseInstructions(htmlList, nestedList=False):
+def ParseInstructions(htmlList, nestedList=False) -> dict:
     '''
-    Segregates the list item code into:
-    1. prompt - The instruction.
-    2. commands - The snippets to be executed.
-    3. links - any files aur docs linked.
-    ---
-    Parameters:
-    htmlList : An ordered or unordered html list, parsed with BeautifulSoup
+    Returns a dictionary in the following manner:
+    key: (index, nested_list_type(ol, ul or None), prompt_if_nested_list)
+    value:
+        1. If nested - Every list item parsed into a dict using ParsedListItem()
+        2. If not nested - The single list item parsed using ParseListItem()
     '''
     parsed_instructions = {}
     instructions = htmlList.find_all('li')
@@ -232,26 +239,27 @@ def SetupViaSteps(parsed_steps: dict):
         print("\nGood to Go! \n")
 
 def SetupNestedList(setupHtml):
+    '''
+    Completely sets up the required setup section
+    '''
     parent_list_type = setupHtml.name
     parsed_instructions = ParseInstructions(setupHtml, nestedList=True)
     
-    choices = []
-    for i,j in parsed_instructions.items():
-        if i[1]: choices.append((i[2], i[1]))
-        else: choices.append((j['prompt'], None))
-        
-    prompts = [i[0] for i in choices]
-    
     if parent_list_type == 'ul':
+        
+        prompts = []
+        for i,j in parsed_instructions.items():
+            if i[1]: prompts.append(i[2])     # If nested
+            else: prompts.append(j['prompt']) # If a single list item
 
         choice = questionary.select("How do you want to set up?", choices=prompts).ask()
         index = prompts.index(choice)
         for i,j in parsed_instructions.items():
             if i[0] == index:
-                if i[1]:
+                if i[1]: # Proceeding if nested list found
                     if i[1] == 'ul': SetupViaChoices(j)
                     elif i[1] == 'ol': SetupViaSteps(j)
-                else:
+                else: # Setting up a single list item
                     prompt, commands, links = j.values()
                     if links:
                         DisplayLinks(links)
@@ -268,9 +276,11 @@ def SetupNestedList(setupHtml):
     elif parent_list_type == 'ol':
         print("\nThese steps will be followed -->\n")
         for key, d in parsed_instructions.items():
-            if key[1]: print(f"{key[0]+1}. {key[2]}\n")
+            # Display the prompt only if nested list
+            if key[1]: print(f"{key[0]+1}. {key[2]}\n") 
             else:
-                prompt, commands, links = d.values()
+                # Display the commands and links as well if it's a single li
+                prompt, commands, links = d.values() 
                 print(f"{key[0]+1}. {prompt}")
                 if commands: DisplayCommands(commands)
                 if links: DisplayLinks(links)
@@ -294,67 +304,72 @@ def SetupNestedList(setupHtml):
 
 def main():
         
-    path_to_readme = questionary.path("Where is the README for setup?").ask()
+    path_to_readme = questionary.path("Where is the markdown file for setup?").ask()
     
-    with open(path_to_readme, 'r') as file:
-        string = file.read()
-        html = mistune.html(string)
+    if path_to_readme.endswith('.md'):
+    
+        with open(path_to_readme, 'r') as file:
+            string = file.read()
+            html = mistune.html(string)
 
-    soup = BeautifulSoup(html, 'html.parser')
-    h2 = soup.find_all('h2')
+        soup = BeautifulSoup(html, 'html.parser')
+        h2 = soup.find_all('h2')
 
-    # Finding the index of "Requirements" &" "Setup" in the file
-    setup_heading_index = req_heading_index = None
-    for heading in h2:
-        if "requirements" in heading.text.lower() : 
-            req_heading_index = h2.index(heading)
-        if "setup" in heading.text.lower():
-            setup_heading_index = h2.index(heading)
-        if setup_heading_index != None and req_heading_index != None: 
-            break
-    else:
-        print("This readme does not fall under the template standards specified, and cannot be parsed.")
-        sys.exit()
-    
-    req_html_elements = GetSection(h2[req_heading_index])
-    
-    # If requirements satisfied, move onto setup
-    if EnsureRequirements(req_html_elements):
-        
-        setup_html_elements = GetSection(
-            heading  = h2[setup_heading_index], 
-            listForm = True
-        )
-        
-        # identifying the device's OS
-        keys_for_platform = {
-            "linux" : "linux",
-            "win32" : "windows",
-            "darwin": "macos",
-        }
-        platform = keys_for_platform[sys.platform]
-        
-        sleep(1)
-        print(f"Operating System: \033[1m{platform}\033[0m")
-        sleep(1)
-        print("\033[1mGetting steps for setup...\033[0m")
-        sleep(1)
-        
-        # Finding the setup instructions for the current platform.
-        for i in range(len(setup_html_elements)):
-            if setup_html_elements[i].name=="h3" and setup_html_elements[i].text.lower()==platform:
-                setup_html = setup_html_elements[i+1]
+        # Finding the index of "Requirements" &" "Setup" in the file
+        setup_heading_index = req_heading_index = None
+        for heading in h2:
+            if heading.text.lower().startswith("requirement") : 
+                req_heading_index = h2.index(heading)
+            if "setup" in heading.text.lower():
+                setup_heading_index = h2.index(heading)
+            if setup_heading_index != None and req_heading_index != None: 
                 break
         else:
-            print("The current platform isn't supported yet.")
+            print("This readme does not fall under the template standards specified, and cannot be parsed.")
             sys.exit()
+        
+        req_html_elements = GetSection(h2[req_heading_index])
+        
+        # If requirements satisfied, move onto setup
+        if EnsureRequirements(req_html_elements):
+            
+            setup_html_elements = GetSection(
+                heading  = h2[setup_heading_index], 
+                listForm = True
+            )
+            
+            # identifying the device's OS
+            keys_for_platform = {
+                "linux" : "linux",
+                "win32" : "windows",
+                "darwin": "macos",
+            }
+            platform = keys_for_platform[sys.platform]
+            
+            sleep(1)
+            print(f"Operating System: \033[1m{platform}\033[0m")
+            sleep(1)
+            print("\033[1mGetting steps for setup...\033[0m")
+            sleep(1)
+            
+            # Finding the setup instructions for the current platform.
+            for i in range(len(setup_html_elements)):
+                if setup_html_elements[i].name=="h3" and setup_html_elements[i].text.lower()==platform:
+                    setup_html = setup_html_elements[i+1]
+                    break
+            else:
+                print("The current platform isn't supported yet.")
+                sys.exit()
 
-        # Calling the required functions as per the list type 
-        if setup_html.ul or setup_html.ol: SetupNestedList(setup_html)
-        else:
-            parsed_instructions = ParseInstructions(setup_html)
-            if setup_html.name == 'ul': SetupViaChoices(parsed_instructions)
-            elif setup_html.name == 'ol': SetupViaSteps(parsed_instructions)
+            # Calling the required functions as per the list type 
+            if setup_html.ul or setup_html.ol: SetupNestedList(setup_html)
+            else:
+                parsed_instructions = ParseInstructions(setup_html)
+                if setup_html.name == 'ul': SetupViaChoices(parsed_instructions)
+                elif setup_html.name == 'ol': SetupViaSteps(parsed_instructions)
+    
+    else:
+        print("Please provide a valid markdown file path.")
 
 if __name__ == '__main__':
     main()
